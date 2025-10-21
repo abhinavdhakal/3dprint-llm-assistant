@@ -16,6 +16,7 @@ pip install -r requirements.txt
 ```
 
 Create a `.env` file in the backend directory:
+
 ```
 GROQ_API_KEY=your_groq_api_key_here
 ```
@@ -29,6 +30,7 @@ Just open `frontend/index.html` in a browser. No build step needed.
 ## Usage
 
 1. Start the backend:
+
 ```bash
 cd backend
 python app.py
@@ -39,6 +41,7 @@ python app.py
 3. Import a SCAD file or work with the default room design
 
 4. Type what you want to change:
+
    - "add a window to the back wall"
    - "make the door wider"
    - "remove the window"
@@ -63,11 +66,13 @@ python app.py
 ## Architecture
 
 ### Backend (Flask + Python)
+
 - `app.py` - Main Flask server, API endpoints
 - `design_modifier.py` - Handles SCAD file modifications and STL generation
 - `llm_handler.py` - Groq API integration for code generation
 
 ### Frontend (Vanilla JS)
+
 - `viewer.js` - Three.js 3D visualization
 - `api.js` - Backend communication
 - `history.js` - Version control
@@ -137,6 +142,7 @@ Version backups include both SCAD and STL files so you can restore complete hist
 ## Dependencies
 
 Backend:
+
 - Flask
 - flask-cors
 - openai (for Groq API)
@@ -144,6 +150,7 @@ Backend:
 - trimesh (STL analysis)
 
 Frontend:
+
 - Three.js (r128)
 - STLLoader
 - OrbitControls

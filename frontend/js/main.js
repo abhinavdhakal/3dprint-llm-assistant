@@ -57,6 +57,24 @@ const App = {
         }
       });
 
+    // Measurement tool toggle
+    document
+      .getElementById("toggle-measurement")
+      .addEventListener("click", () => {
+        const active = Viewer.toggleMeasurementMode();
+        const btn = document.getElementById("toggle-measurement");
+        if (active) {
+          btn.classList.add("active");
+          UI.addMessage(
+            "Measurement mode: Click two points on the model",
+            "system"
+          );
+        } else {
+          btn.classList.remove("active");
+          UI.addMessage("Measurement mode disabled", "system");
+        }
+      });
+
     // History controls
     document
       .getElementById("undo-btn")

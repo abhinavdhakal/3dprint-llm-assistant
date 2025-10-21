@@ -16,6 +16,10 @@ const AppState = {
   modifiedMesh: null,
   dimensionGroup: null,
   measurementOverlay: null,
+  measurementInfo: null,
+  measurementMode: false,
+  measurementPoints: [],
+  measurementClickHandler: null,
 
   // Methods
   setCurrentDesign(design) {

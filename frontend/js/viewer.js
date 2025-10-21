@@ -42,6 +42,9 @@ const Viewer = {
     // Setup measurement overlay
     this.setupMeasurementOverlay(container);
 
+    // Setup interactive measurement tool
+    this.setupMeasurementTool(container, camera);
+
     // Animation loop
     this.animate();
 
@@ -65,7 +68,7 @@ const Viewer = {
   },
 
   setupHelpers(scene) {
-    // Grid - keep it horizontal (XZ plane is default, which works for us)
+    // Simple grid
     const gridHelper = new THREE.GridHelper(
       CONFIG.VIEWER.GRID_SIZE,
       CONFIG.VIEWER.GRID_DIVISIONS,
@@ -74,108 +77,24 @@ const Viewer = {
     );
     scene.add(gridHelper);
 
-    // Axes helper
+    // Simple axes
     const axesHelper = new THREE.AxesHelper(CONFIG.VIEWER.AXES_SIZE);
     scene.add(axesHelper);
 
     // Add axis labels
     this.addAxisLabels(scene);
-
-    // Add grid scale labels
-    this.addGridScaleLabels(scene);
-
-    // Add orientation compass
-    this.addOrientationCompass(scene);
-  },
-
-  addGridScaleLabels(scene) {
-    const gridSize = CONFIG.VIEWER.GRID_SIZE;
-    const divisions = CONFIG.VIEWER.GRID_DIVISIONS;
-    const step = gridSize / divisions;
-
-    // Add scale markers along X and Z axes every 1000mm (1m)
-    const markerInterval = 1000;
-    const numMarkers = Math.floor(gridSize / 2 / markerInterval);
-
-    for (let i = 1; i <= numMarkers; i++) {
-      const distance = i * markerInterval;
-
-      // X axis markers (along positive X)
-      const xLabel = this.createTextSprite(`${distance}mm`, "#888888", 48);
-      xLabel.position.set(distance, 50, -200);
-      xLabel.scale.set(300, 150, 1);
-      scene.add(xLabel);
-
-      // Z axis markers (along positive Z)
-      const zLabel = this.createTextSprite(`${distance}mm`, "#888888", 48);
-      zLabel.position.set(-200, 50, distance);
-      zLabel.scale.set(300, 150, 1);
-      scene.add(zLabel);
-    }
-  },
-
-  addOrientationCompass(scene) {
-    // Create a small compass in the corner
-    const compassGroup = new THREE.Group();
-    compassGroup.name = "orientationCompass";
-
-    // Position it at a fixed location (will need CSS overlay for true corner positioning)
-    // For now, position it in world space
-    const compassSize = 500;
-
-    // X arrow (Red)
-    const xArrow = new THREE.ArrowHelper(
-      new THREE.Vector3(1, 0, 0),
-      new THREE.Vector3(0, 0, 0),
-      compassSize,
-      0xff0000,
-      compassSize * 0.3,
-      compassSize * 0.2
-    );
-    compassGroup.add(xArrow);
-
-    // Y arrow (Green)
-    const yArrow = new THREE.ArrowHelper(
-      new THREE.Vector3(0, 1, 0),
-      new THREE.Vector3(0, 0, 0),
-      compassSize,
-      0x00ff00,
-      compassSize * 0.3,
-      compassSize * 0.2
-    );
-    compassGroup.add(yArrow);
-
-    // Z arrow (Blue)
-    const zArrow = new THREE.ArrowHelper(
-      new THREE.Vector3(0, 0, 1),
-      new THREE.Vector3(0, 0, 0),
-      compassSize,
-      0x0000ff,
-      compassSize * 0.3,
-      compassSize * 0.2
-    );
-    compassGroup.add(zArrow);
-
-    // Position compass in bottom-left of view
-    const gridEdge = CONFIG.VIEWER.GRID_SIZE / 2;
-    compassGroup.position.set(-gridEdge * 0.8, 100, -gridEdge * 0.8);
-
-    scene.add(compassGroup);
   },
 
   addAxisLabels(scene) {
-    // Position labels just outside the grid edge
-    // Grid is GRID_SIZE total, so edge is at GRID_SIZE/2 from center
     const labelDistance = (CONFIG.VIEWER.GRID_SIZE / 2) * 1.1;
 
-    // Create text sprites for X, Y, Z
     const createTextSprite = (text, color) => {
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
       canvas.width = 256;
       canvas.height = 256;
 
-      context.font = "Bold 120px Arial";
+      context.font = "Bold 100px Arial";
       context.fillStyle = color;
       context.textAlign = "center";
       context.textBaseline = "middle";
@@ -184,7 +103,7 @@ const Viewer = {
       const texture = new THREE.CanvasTexture(canvas);
       const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
       const sprite = new THREE.Sprite(spriteMaterial);
-      sprite.scale.set(500, 500, 1);
+      sprite.scale.set(400, 400, 1);
       return sprite;
     };
 
@@ -251,24 +170,24 @@ const Viewer = {
   },
 
   setupMeasurementOverlay(container) {
-    // Create overlay div for measurements
     const overlay = document.createElement("div");
     overlay.id = "measurement-overlay";
     overlay.style.cssText = `
       position: absolute;
       top: 10px;
       right: 10px;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(30, 30, 30, 0.95);
       color: #fff;
-      padding: 15px;
-      border-radius: 8px;
-      font-family: 'Courier New', monospace;
-      font-size: 13px;
-      line-height: 1.6;
+      padding: 12px 16px;
+      border-radius: 4px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 12px;
+      line-height: 1.8;
       pointer-events: none;
-      min-width: 200px;
+      min-width: 180px;
       display: none;
       z-index: 1000;
+      border: 1px solid rgba(255, 255, 255, 0.1);
     `;
     container.style.position = "relative";
     container.appendChild(overlay);
@@ -287,25 +206,197 @@ const Viewer = {
     const size = new THREE.Vector3();
     bbox.getSize(size);
 
+    const volume = (size.x * size.y * size.z) / 1000000;
+
     overlay.innerHTML = `
-      <div style="font-weight: bold; margin-bottom: 8px; color: #4CAF50;">📐 Dimensions</div>
-      <div><span style="color: #ff6b6b;">Length (X):</span> ${size.x.toFixed(
+      <div style="margin-bottom: 6px; font-weight: 600; opacity: 0.7; font-size: 11px;">DIMENSIONS</div>
+      <div>Length: <span style="float: right; font-weight: 500;">${size.x.toFixed(
         0
-      )} mm</div>
-      <div><span style="color: #4ecdc4;">Height (Y):</span> ${size.y.toFixed(
+      )} mm</span></div>
+      <div>Height: <span style="float: right; font-weight: 500;">${size.y.toFixed(
         0
-      )} mm</div>
-      <div><span style="color: #95a5a6;">Width (Z):</span> ${size.z.toFixed(
+      )} mm</span></div>
+      <div>Width: <span style="float: right; font-weight: 500;">${size.z.toFixed(
         0
-      )} mm</div>
-      <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #555;">
-        <div><span style="color: #f7b731;">Volume:</span> ${(
-          (size.x * size.y * size.z) /
-          1000000
-        ).toFixed(2)} L</div>
+      )} mm</span></div>
+      <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1);">
+        Volume: <span style="float: right; font-weight: 500;">${volume.toFixed(
+          2
+        )} L</span>
       </div>
     `;
     overlay.style.display = "block";
+  },
+
+  setupMeasurementTool(container, camera) {
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    AppState.measurementPoints = [];
+    AppState.measurementMode = false;
+
+    // Create measurement info overlay
+    const measureInfo = document.createElement("div");
+    measureInfo.id = "measurement-info";
+    measureInfo.style.cssText = `
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(30, 30, 30, 0.95);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 12px;
+      display: none;
+      z-index: 1000;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    `;
+    measureInfo.textContent = "Click two points to measure distance";
+    container.appendChild(measureInfo);
+    AppState.measurementInfo = measureInfo;
+
+    const canvas = AppState.renderer.domElement;
+
+    const onClick = (event) => {
+      if (!AppState.measurementMode) return;
+
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+
+      const meshes = [];
+      if (AppState.currentMesh) meshes.push(AppState.currentMesh);
+      if (AppState.modifiedMesh) meshes.push(AppState.modifiedMesh);
+
+      const intersects = raycaster.intersectObjects(meshes);
+
+      if (intersects.length > 0) {
+        const point = intersects[0].point.clone();
+        AppState.measurementPoints.push(point);
+
+        // Add point marker
+        const markerGeom = new THREE.SphereGeometry(30, 8, 8);
+        const markerMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const marker = new THREE.Mesh(markerGeom, markerMat);
+        marker.position.copy(point);
+        AppState.scene.add(marker);
+
+        if (AppState.measurementPoints.length === 1) {
+          measureInfo.textContent = "Click second point";
+        } else if (AppState.measurementPoints.length === 2) {
+          // Calculate distance
+          const distance = AppState.measurementPoints[0].distanceTo(
+            AppState.measurementPoints[1]
+          );
+
+          // Draw line
+          const lineGeom = new THREE.BufferGeometry().setFromPoints(
+            AppState.measurementPoints
+          );
+          const lineMat = new THREE.LineBasicMaterial({
+            color: 0xff0000,
+            linewidth: 2,
+          });
+          const measurementLine = new THREE.Line(lineGeom, lineMat);
+          AppState.scene.add(measurementLine);
+
+          // Add label
+          const midpoint = new THREE.Vector3()
+            .addVectors(
+              AppState.measurementPoints[0],
+              AppState.measurementPoints[1]
+            )
+            .multiplyScalar(0.5);
+
+          const measurementLabel = this.createMeasurementLabel(
+            `${distance.toFixed(1)} mm`
+          );
+          measurementLabel.position.copy(midpoint);
+          AppState.scene.add(measurementLabel);
+
+          measureInfo.textContent = `Distance: ${distance.toFixed(
+            1
+          )} mm (Click to measure again)`;
+
+          // Reset for next measurement
+          AppState.measurementPoints = [];
+        }
+      }
+    };
+
+    canvas.addEventListener("click", onClick);
+    AppState.measurementClickHandler = onClick;
+  },
+
+  createMeasurementLabel(text) {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    canvas.width = 512;
+    canvas.height = 128;
+
+    context.fillStyle = "rgba(0, 0, 0, 0.8)";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    context.font = "Bold 60px Arial";
+    context.fillStyle = "#ffffff";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+    });
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(800, 200, 1);
+    return sprite;
+  },
+
+  toggleMeasurementMode() {
+    const measureInfo = AppState.measurementInfo;
+    if (!measureInfo) return false;
+
+    AppState.measurementMode = !AppState.measurementMode;
+
+    if (AppState.measurementMode) {
+      // Enable measurement mode
+      measureInfo.style.display = "block";
+      measureInfo.textContent = "Click two points to measure distance";
+      return true;
+    } else {
+      // Disable measurement mode
+      measureInfo.style.display = "none";
+      this.clearMeasurements();
+      AppState.measurementPoints = [];
+      return false;
+    }
+  },
+
+  clearMeasurements() {
+    // Remove all measurement objects from scene
+    const objectsToRemove = [];
+    AppState.scene.traverse((object) => {
+      if (object.isMesh && object.geometry instanceof THREE.SphereGeometry) {
+        if (
+          object.geometry.parameters &&
+          object.geometry.parameters.radius === 30
+        ) {
+          objectsToRemove.push(object);
+        }
+      }
+      if (object.isLine && object.material.color.getHex() === 0xff0000) {
+        objectsToRemove.push(object);
+      }
+      if (object.isSprite && object.scale.x === 800) {
+        objectsToRemove.push(object);
+      }
+    });
+
+    objectsToRemove.forEach((obj) => AppState.scene.remove(obj));
   },
 
   animate() {
@@ -381,6 +472,9 @@ const Viewer = {
         if (!AppState.currentMesh && !AppState.modifiedMesh) {
           this.fitCameraToModel(mesh, 0.9);
         }
+
+        // Show measurements
+        this.updateMeasurementOverlay(bbox, true);
 
         if (onLoad) onLoad(mesh);
       },
@@ -495,162 +589,21 @@ const Viewer = {
     }
   },
 
-  // Add dimension lines to a mesh
-  addDimensionLines(mesh) {
-    // Remove old dimension lines if they exist
-    this.removeDimensionLines();
-
-    const bbox = new THREE.Box3().setFromObject(mesh);
-    const size = new THREE.Vector3();
-    bbox.getSize(size);
-    const center = new THREE.Vector3();
-    bbox.getCenter(center);
-
-    const dimensionGroup = new THREE.Group();
-    dimensionGroup.name = "dimensionLines";
-
-    // Create dimension line material
-    const lineMaterial = new THREE.LineBasicMaterial({
-      color: 0xffaa00,
-      linewidth: 2,
-      opacity: 0.8,
-      transparent: true,
-    });
-
-    const textColor = "#ffaa00";
-    const offset = Math.max(size.x, size.y, size.z) * 0.15;
-
-    // X dimension (length) - front bottom
-    this.createDimensionLine(
-      new THREE.Vector3(bbox.min.x, bbox.min.y - offset, bbox.max.z + offset),
-      new THREE.Vector3(bbox.max.x, bbox.min.y - offset, bbox.max.z + offset),
-      `${size.x.toFixed(0)} mm`,
-      lineMaterial,
-      textColor,
-      dimensionGroup
-    );
-
-    // Y dimension (height) - right side
-    this.createDimensionLine(
-      new THREE.Vector3(bbox.max.x + offset, bbox.min.y, bbox.max.z + offset),
-      new THREE.Vector3(bbox.max.x + offset, bbox.max.y, bbox.max.z + offset),
-      `${size.y.toFixed(0)} mm`,
-      lineMaterial,
-      textColor,
-      dimensionGroup
-    );
-
-    // Z dimension (width) - right bottom
-    this.createDimensionLine(
-      new THREE.Vector3(bbox.max.x + offset, bbox.min.y - offset, bbox.min.z),
-      new THREE.Vector3(bbox.max.x + offset, bbox.min.y - offset, bbox.max.z),
-      `${size.z.toFixed(0)} mm`,
-      lineMaterial,
-      textColor,
-      dimensionGroup
-    );
-
-    AppState.scene.add(dimensionGroup);
-    AppState.dimensionGroup = dimensionGroup;
-  },
-
-  // Create a single dimension line with label
-  createDimensionLine(start, end, label, lineMaterial, textColor, group) {
-    // Main dimension line
-    const points = [start, end];
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const line = new THREE.Line(geometry, lineMaterial);
-    group.add(line);
-
-    // End caps
-    const capSize = Math.max(100, start.distanceTo(end) * 0.02);
-    const direction = new THREE.Vector3().subVectors(end, start).normalize();
-    const perpendicular = new THREE.Vector3(
-      -direction.z,
-      0,
-      direction.x
-    ).normalize();
-
-    // Start cap
-    const startCap1 = start
-      .clone()
-      .add(perpendicular.clone().multiplyScalar(capSize));
-    const startCap2 = start
-      .clone()
-      .add(perpendicular.clone().multiplyScalar(-capSize));
-    const startCapGeom = new THREE.BufferGeometry().setFromPoints([
-      startCap1,
-      startCap2,
-    ]);
-    group.add(new THREE.Line(startCapGeom, lineMaterial));
-
-    // End cap
-    const endCap1 = end
-      .clone()
-      .add(perpendicular.clone().multiplyScalar(capSize));
-    const endCap2 = end
-      .clone()
-      .add(perpendicular.clone().multiplyScalar(-capSize));
-    const endCapGeom = new THREE.BufferGeometry().setFromPoints([
-      endCap1,
-      endCap2,
-    ]);
-    group.add(new THREE.Line(endCapGeom, lineMaterial));
-
-    // Text label
-    const midpoint = new THREE.Vector3()
-      .addVectors(start, end)
-      .multiplyScalar(0.5);
-    const textSprite = this.createTextSprite(label, textColor, 64);
-    textSprite.position.copy(midpoint);
-    textSprite.scale.set(400, 200, 1);
-    group.add(textSprite);
-  },
-
-  // Create text sprite for labels
-  createTextSprite(text, color, fontSize = 120) {
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
-    canvas.width = 512;
-    canvas.height = 256;
-
-    // Background
-    context.fillStyle = "rgba(0, 0, 0, 0.7)";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Text
-    context.font = `Bold ${fontSize}px Arial`;
-    context.fillStyle = color;
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillText(text, canvas.width / 2, canvas.height / 2);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    const spriteMaterial = new THREE.SpriteMaterial({
-      map: texture,
-      transparent: true,
-      opacity: 0.9,
-    });
-    return new THREE.Sprite(spriteMaterial);
-  },
-
-  // Remove dimension lines
-  removeDimensionLines() {
-    if (AppState.dimensionGroup) {
-      AppState.scene.remove(AppState.dimensionGroup);
-      AppState.dimensionGroup = null;
-    }
-  },
-
-  // Toggle dimension lines
+  // Toggle dimension overlay
   toggleDimensions() {
-    if (AppState.dimensionGroup) {
-      this.removeDimensionLines();
+    const overlay = AppState.measurementOverlay;
+    if (!overlay) return false;
+
+    const isVisible = overlay.style.display !== "none";
+
+    if (isVisible) {
+      overlay.style.display = "none";
       return false;
     } else {
       const mesh = AppState.currentMesh || AppState.modifiedMesh;
       if (mesh) {
-        this.addDimensionLines(mesh);
+        const bbox = new THREE.Box3().setFromObject(mesh);
+        this.updateMeasurementOverlay(bbox, true);
         return true;
       }
     }
@@ -665,8 +618,7 @@ const Viewer = {
     if (AppState.modifiedMesh && AppState.scene) {
       AppState.scene.remove(AppState.modifiedMesh);
     }
-    this.removeDimensionLines();
-    console.log("🧹 Scene cleared");
+    console.log("Scene cleared");
   },
 
   // Helper method to reset camera view
