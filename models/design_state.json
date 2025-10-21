@@ -1,0 +1,20 @@
+{
+  "version": 8,
+  "timestamp": "2025-10-20T19:22:35.028624",
+  "parameters": {
+    "room_length": 6500,
+    "room_width": 5500,
+    "wall_height": 2800,
+    "wall_thickness": 200,
+    "window_width": 1500,
+    "window_height": 1200,
+    "window_position": 3000,
+    "window_sill_height": 900,
+    "door1_width": 900,
+    "door1_height": 2100,
+    "door1_position": 1000,
+    "door2_width": 1000,
+    "door2_height": 2000
+  },
+  "scad_file": "design.scad"
+}

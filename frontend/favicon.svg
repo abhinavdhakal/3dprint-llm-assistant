@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="#2c3e50" stroke="#34495e" stroke-width="2"/>
+  
+  <!-- 3D Printer nozzle (top) -->
+  <path d="M 40 20 L 35 30 L 65 30 L 60 20 Z" fill="#95a5a6"/>
+  <rect x="35" y="30" width="30" height="5" fill="#7f8c8d"/>
+  
+  <!-- Printing layers (concrete) -->
+  <rect x="30" y="40" width="40" height="6" fill="#bdc3c7" rx="2"/>
+  <rect x="28" y="48" width="44" height="6" fill="#95a5a6" rx="2"/>
+  <rect x="26" y="56" width="48" height="6" fill="#7f8c8d" rx="2"/>
+  <rect x="24" y="64" width="52" height="6" fill="#95a5a6" rx="2"/>
+  <rect x="22" y="72" width="56" height="6" fill="#bdc3c7" rx="2"/>
+  
+  <!-- Base platform -->
+  <rect x="15" y="80" width="70" height="4" fill="#34495e"/>
+  
+  <!-- Accent dots (representing droplets) -->
+  <circle cx="50" cy="36" r="2" fill="#e74c3c" opacity="0.8"/>
+</svg>

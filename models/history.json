@@ -1,0 +1,157 @@
+[
+  {
+    "id": "v1_1760986991288",
+    "version": 1,
+    "timestamp": "2025-10-20T14:03:11.288108",
+    "description": "Original design: design",
+    "parameters": {
+      "room_length": 6500,
+      "room_width": 5500,
+      "wall_height": 2800,
+      "wall_thickness": 200,
+      "door_width": 800,
+      "door_height": 2100,
+      "door_position": 1000,
+      "window_width": 1500,
+      "window_height": 1200,
+      "window_position": 3000,
+      "window_sill_height": 900
+    }
+  },
+  {
+    "id": "v2_1760987056910",
+    "version": 2,
+    "timestamp": "2025-10-20T14:04:16.910317",
+    "description": "Add an extra door in the opposite wall of the current doo...",
+    "parameters": {
+      "room_length": 6500,
+      "room_width": 5500,
+      "wall_height": 2800,
+      "wall_thickness": 200,
+      "door_width": 800,
+      "door_height": 2100,
+      "door_position": 1000,
+      "window_width": 1500,
+      "window_height": 1200,
+      "window_position": 3000,
+      "window_sill_height": 900
+    }
+  },
+  {
+    "id": "v3_1761005225663",
+    "version": 3,
+    "timestamp": "2025-10-20T19:07:05.663477",
+    "description": "Remove both doors from the existing room design while pre...",
+    "parameters": {
+      "room_length": 6500,
+      "room_width": 5500,
+      "wall_height": 2800,
+      "wall_thickness": 200,
+      "door_width": 800,
+      "door_height": 2100,
+      "door_position": 1000,
+      "window_width": 1500,
+      "window_height": 1200,
+      "window_position": 3000,
+      "window_sill_height": 900
+    }
+  },
+  {
+    "id": "v4_1761005239812",
+    "version": 4,
+    "timestamp": "2025-10-20T19:07:19.812431",
+    "description": "Remove the door parameters from the existing OpenSCAD cod...",
+    "parameters": {
+      "room_length": 6500,
+      "room_width": 5500,
+      "wall_height": 2800,
+      "wall_thickness": 200,
+      "window_width": 1500,
+      "window_height": 1200,
+      "window_position": 3000,
+      "window_sill_height": 900
+    }
+  },
+  {
+    "id": "v5_1761005332876",
+    "version": 5,
+    "timestamp": "2025-10-20T19:08:52.876838",
+    "description": "Add two doors to the existing room design, one in the fro...",
+    "parameters": {
+      "room_length": 6500,
+      "room_width": 5500,
+      "wall_height": 2800,
+      "wall_thickness": 200,
+      "window_width": 1500,
+      "window_height": 1200,
+      "window_position": 3000,
+      "window_sill_height": 900,
+      "door1_width": 900,
+      "door1_height": 2100,
+      "door2_width": 800,
+      "door2_height": 2000
+    }
+  },
+  {
+    "id": "v6_1761005383563",
+    "version": 6,
+    "timestamp": "2025-10-20T19:09:43.563770",
+    "description": "Keep the doors separate, meaning no changes are needed to...",
+    "parameters": {
+      "room_length": 6500,
+      "room_width": 5500,
+      "wall_height": 2800,
+      "wall_thickness": 200,
+      "window_width": 1500,
+      "window_height": 1200,
+      "window_position": 3000,
+      "window_sill_height": 900,
+      "door1_width": 900,
+      "door1_height": 2100,
+      "door2_width": 800,
+      "door2_height": 2000
+    }
+  },
+  {
+    "id": "v7_1761005429995",
+    "version": 7,
+    "timestamp": "2025-10-20T19:10:29.995950",
+    "description": "Separate the front door and window in the existing OpenSC...",
+    "parameters": {
+      "room_length": 6500,
+      "room_width": 5500,
+      "wall_height": 2800,
+      "wall_thickness": 200,
+      "window_width": 1500,
+      "window_height": 1200,
+      "window_position": 3000,
+      "window_sill_height": 900,
+      "door1_width": 900,
+      "door1_height": 2100,
+      "door1_position": 1000,
+      "door2_width": 800,
+      "door2_height": 2000
+    }
+  },
+  {
+    "id": "v8_1761006155026",
+    "version": 8,
+    "timestamp": "2025-10-20T19:22:35.026872",
+    "description": "Modify the existing OpenSCAD code to change the width of ...",
+    "parameters": {
+      "room_length": 6500,
+      "room_width": 5500,
+      "wall_height": 2800,
+      "wall_thickness": 200,
+      "window_width": 1500,
+      "window_height": 1200,
+      "window_position": 3000,
+      "window_sill_height": 900,
+      "door1_width": 900,
+      "door1_height": 2100,
+      "door1_position": 1000,
+      "door2_width": 1000,
+      "door2_height": 2000
+    }
+  }
+]

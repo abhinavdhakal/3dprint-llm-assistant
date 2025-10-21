@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Concrete 3D Printing Assistant</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="alternate icon" type="image/png" href="favicon.png" />
+
+    <link rel="stylesheet" href="style.css" />
+
+    <!-- Three.js and addons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- Stats for FPS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r17/Stats.min.js"></script>
+
+    <!-- Application Modules (order matters!) -->
+    <script src="js/config.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/history.js"></script>
+    <script src="js/importexport.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/viewer.js"></script>
+    <script src="js/main.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <header>
+        <h1>🏗️ Concrete 3D Printing Design Assistant</h1>
+        <p>LLM-Assisted Design Modification System</p>
+        <div class="project-header">
+          <div id="project-name-display" class="project-name-display">
+            No project loaded
+          </div>
+          <button
+            id="rename-project-btn"
+            class="btn-rename"
+            title="Rename Project"
+          >
+            ✏️
+          </button>
+        </div>
+
+        <!-- Top Toolbar -->
+        <div class="toolbar">
+          <div class="toolbar-section">
+            <button
+              id="undo-btn"
+              class="btn btn-small btn-icon"
+              title="Undo"
+              disabled
+            >
+              ↶ Undo
+            </button>
+            <button
+              id="redo-btn"
+              class="btn btn-small btn-icon"
+              title="Redo"
+              disabled
+            >
+              ↷ Redo
+            </button>
+            <span id="version-counter" class="version-counter"
+              >Version 1/1</span
+            >
+          </div>
+
+          <div class="toolbar-section">
+            <button
+              id="import-export-btn"
+              class="btn btn-small btn-icon"
+              title="Import / Export Design"
+            >
+              📁 Import / Export
+            </button>
+            <button
+              id="history-btn"
+              class="btn btn-small btn-icon"
+              title="Version History"
+            >
+              📜 History
+            </button>
+          </div>
+        </div>
+
+        <!-- Import/Export Popup Menu -->
+        <div
+          id="import-export-menu"
+          class="import-export-menu"
+          style="display: none"
+        >
+          <h3>Import/Export</h3>
+          <div class="menu-section">
+            <h4>Project</h4>
+            <button id="new-project-btn" class="btn btn-small btn-block">
+              📄 New Project
+            </button>
+            <button id="save-project-btn" class="btn btn-small btn-block">
+              💾 Save Project
+            </button>
+            <button id="open-project-btn" class="btn btn-small btn-block">
+              📂 Open Project
+            </button>
+          </div>
+          <div class="menu-section">
+            <h4>Import</h4>
+            <button id="import-scad-btn" class="btn btn-small btn-block">
+              📐 Import OpenSCAD File
+            </button>
+          </div>
+          <div class="menu-section">
+            <h4>Export</h4>
+            <button id="export-stl-btn" class="btn btn-small btn-block">
+              🗿 Export STL
+            </button>
+            <button id="export-scad-btn" class="btn btn-small btn-block">
+              📐 Export SCAD
+            </button>
+          </div>
+        </div>
+
+        <!-- Version History Popup Panel -->
+        <div id="history-panel" class="history-panel" style="display: none">
+          <h3>Version History</h3>
+          <div id="history-list" class="history-list">
+            <div class="history-empty">No version history yet</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <div class="main-content">
+        <!-- Left Panel: Chat Interface -->
+        <div class="panel left-panel">
+          <h2>Operator Interface</h2>
+
+          <div id="chat-history" class="chat-history">
+            <div class="message system-message">
+              System ready. Current design loaded.
+            </div>
+          </div>
+
+          <div class="input-area">
+            <textarea
+              id="operator-input"
+              placeholder="Enter modification request (e.g., 'Make the wall 500mm taller')"
+              rows="3"
+            ></textarea>
+            <button id="submit-btn" class="btn btn-primary">
+              Submit Request
+            </button>
+          </div>
+
+          <div id="action-buttons" class="action-buttons" style="display: none">
+            <button id="approve-btn" class="btn btn-success">
+              ✓ Approve Changes
+            </button>
+            <button id="reject-btn" class="btn btn-danger">
+              ✗ Request More Changes
+            </button>
+          </div>
+        </div>
+
+        <!-- Center Panel: 3D Viewer -->
+        <div class="panel center-panel">
+          <h2>3D Visualization</h2>
+
+          <div class="viewer-controls">
+            <button id="show-current" class="btn btn-small active">
+              Current Design
+            </button>
+            <button id="show-modified" class="btn btn-small" disabled>
+              Modified Design
+            </button>
+            <button id="show-both" class="btn btn-small" disabled>
+              Compare
+            </button>
+            <button
+              id="toggle-dimensions"
+              class="btn btn-small"
+              title="Toggle dimension lines"
+            >
+              📏 Dimensions
+            </button>
+          </div>
+
+          <div id="viewer-container" class="viewer-container"></div>
+
+          <div class="viewer-info">
+            <span>🖱️ Left-drag: Rotate | Right-drag: Pan | Scroll: Zoom</span>
+          </div>
+        </div>
+
+        <!-- Right Panel: Configuration -->
+        <div class="panel right-panel">
+          <h2>Design Parameters</h2>
+
+          <div id="parameters-display" class="parameters-display">
+            <div class="loading">Loading design...</div>
+          </div>
+
+          <h3>Design Analysis</h3>
+          <div id="analysis-display" class="analysis-display">
+            <div class="loading">Analyzing...</div>
+          </div>
+
+          <div
+            id="modification-info"
+            class="modification-info"
+            style="display: none"
+          >
+            <h3>Proposed Changes</h3>
+            <div id="changes-summary"></div>
+            <div id="reasoning"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status Bar -->
+      <footer id="status-bar" class="status-bar">
+        <span id="status-text">● Ready</span>
+      </footer>
+    </div>
+  </body>
+</html>

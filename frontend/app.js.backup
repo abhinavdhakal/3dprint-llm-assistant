@@ -1,0 +1,595 @@
+// API Base URL
+const API_BASE = "http://127.0.0.1:5000/api";
+
+// State
+let currentDesign = null;
+let modifiedDesign = null;
+let viewerMode = "current"; // 'current', 'modified', 'both'
+
+// Three.js Scene Setup
+let scene, camera, renderer, controls;
+let currentMesh = null;
+let modifiedMesh = null;
+
+// Initialize
+document.addEventListener("DOMContentLoaded", () => {
+  initViewer();
+  loadCurrentDesign();
+  setupEventListeners();
+});
+
+// Setup Event Listeners
+function setupEventListeners() {
+  document
+    .getElementById("submit-btn")
+    .addEventListener("click", submitModification);
+  document
+    .getElementById("approve-btn")
+    .addEventListener("click", approveDesign);
+  document.getElementById("reject-btn").addEventListener("click", rejectDesign);
+
+  document
+    .getElementById("show-current")
+    .addEventListener("click", () => switchView("current"));
+  document
+    .getElementById("show-modified")
+    .addEventListener("click", () => switchView("modified"));
+  document
+    .getElementById("show-both")
+    .addEventListener("click", () => switchView("both"));
+
+  // Allow Enter to submit (with Shift+Enter for newline)
+  document.getElementById("operator-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submitModification();
+    }
+  });
+}
+
+// Initialize Three.js Viewer
+function initViewer() {
+  const container = document.getElementById("viewer-container");
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+
+  // Scene
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xf5f5f5);
+
+  // Camera - adjusted near/far clipping planes to prevent z-fighting at distance
+  camera = new THREE.PerspectiveCamera(75, width / height, 1, 100000);
+  camera.position.set(5000, 5000, 5000);
+  camera.lookAt(0, 0, 0);
+
+  // Renderer
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(width, height);
+  container.appendChild(renderer.domElement);
+
+  // Lights
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  scene.add(ambientLight);
+
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  directionalLight.position.set(1, 1, 1);
+  scene.add(directionalLight);
+
+  // Grid
+  const gridHelper = new THREE.GridHelper(10000, 20, 0x667eea, 0xe0e0e0);
+  scene.add(gridHelper);
+
+  // Axes
+  const axesHelper = new THREE.AxesHelper(2000);
+  scene.add(axesHelper);
+
+  // Simple orbit controls (mouse interaction)
+  setupOrbitControls();
+
+  // Animation loop
+  animate();
+
+  // Handle window resize
+  window.addEventListener("resize", () => {
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+  });
+}
+
+// Simple Orbit Controls
+function setupOrbitControls() {
+  const container = renderer.domElement;
+  let isDragging = false;
+  let previousMousePosition = { x: 0, y: 0 };
+
+  container.addEventListener("mousedown", (e) => {
+    isDragging = true;
+    previousMousePosition = { x: e.clientX, y: e.clientY };
+  });
+
+  container.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+
+    const deltaX = e.clientX - previousMousePosition.x;
+    const deltaY = e.clientY - previousMousePosition.y;
+
+    // Rotate camera around center
+    const rotationSpeed = 0.005;
+    const theta = deltaX * rotationSpeed;
+    const phi = deltaY * rotationSpeed;
+
+    const radius = camera.position.length();
+    const currentTheta = Math.atan2(camera.position.x, camera.position.z);
+    const currentPhi = Math.acos(camera.position.y / radius);
+
+    const newTheta = currentTheta - theta;
+    const newPhi = Math.max(0.1, Math.min(Math.PI - 0.1, currentPhi - phi));
+
+    camera.position.x = radius * Math.sin(newPhi) * Math.sin(newTheta);
+    camera.position.y = radius * Math.cos(newPhi);
+    camera.position.z = radius * Math.sin(newPhi) * Math.cos(newTheta);
+    camera.lookAt(0, 0, 0);
+
+    previousMousePosition = { x: e.clientX, y: e.clientY };
+  });
+
+  container.addEventListener("mouseup", () => {
+    isDragging = false;
+  });
+
+  container.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const zoomSpeed = 100;
+    const delta = e.deltaY > 0 ? zoomSpeed : -zoomSpeed;
+    const direction = camera.position.clone().normalize();
+
+    // Apply zoom with distance limits
+    const newPosition = camera.position
+      .clone()
+      .addScaledVector(direction, delta);
+    const distance = newPosition.length();
+
+    // Prevent zooming too close or too far (adjusted for better range)
+    // Min: 200 (prevent clipping into model), Max: 80000 (prevent z-fighting)
+    if (distance > 200 && distance < 80000) {
+      camera.position.copy(newPosition);
+      camera.lookAt(0, 0, 0);
+    }
+  });
+
+  container.addEventListener("mouseleave", () => {
+    isDragging = false;
+  });
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+
+// Load STL and add to scene
+function loadSTL(url, color, onLoad) {
+  const loader = new THREE.STLLoader();
+
+  console.log(`Loading STL from: ${url}`);
+
+  loader.load(
+    url,
+    (geometry) => {
+      console.log("STL loaded successfully, processing geometry...");
+
+      // Compute normals for proper lighting
+      geometry.computeVertexNormals();
+
+      // Center the model
+      geometry.computeBoundingBox();
+      const center = new THREE.Vector3();
+      geometry.boundingBox.getCenter(center);
+      geometry.translate(-center.x, -center.y, -center.z);
+
+      // Recompute bounding box after translation
+      geometry.computeBoundingBox();
+
+      const material = new THREE.MeshPhongMaterial({
+        color: color,
+        transparent: true,
+        opacity: 0.9,
+        side: THREE.DoubleSide,
+        flatShading: false,
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+
+      // Fix orientation - rotate to correct orientation (models may load upside down)
+      // Rotate 180° around X axis to flip the model right-side up
+      mesh.rotation.x = Math.PI;
+
+      console.log(
+        "Mesh created, vertices:",
+        geometry.attributes.position.count
+      );
+
+      // Auto-fit camera to model if it's the first load
+      if (!currentMesh && !modifiedMesh) {
+        fitCameraToModel(geometry);
+      }
+
+      if (onLoad) onLoad(mesh);
+    },
+    (progress) => {
+      if (progress.lengthComputable) {
+        const percentComplete = (progress.loaded / progress.total) * 100;
+        console.log(`Loading STL: ${percentComplete.toFixed(1)}%`);
+      }
+    },
+    (error) => {
+      console.error("Error loading STL:", error);
+      console.error("URL:", url);
+      addMessage("Error loading 3D model. Check console for details.", "error");
+    }
+  );
+}
+
+// Fit camera to view the entire model
+function fitCameraToModel(geometry) {
+  const boundingBox = geometry.boundingBox;
+  const size = new THREE.Vector3();
+  boundingBox.getSize(size);
+
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const fov = camera.fov * (Math.PI / 180);
+  let cameraDistance = Math.abs(maxDim / Math.sin(fov / 2));
+
+  // Add some padding
+  cameraDistance *= 1.5;
+
+  // Position camera
+  camera.position.set(cameraDistance, cameraDistance, cameraDistance);
+  camera.lookAt(0, 0, 0);
+  camera.updateProjectionMatrix();
+
+  console.log(`Camera positioned at distance: ${cameraDistance.toFixed(2)}`);
+  console.log(
+    `Model size: ${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(
+      2
+    )}`
+  );
+}
+
+// Load Current Design
+async function loadCurrentDesign() {
+  updateStatus("Loading current design...");
+
+  try {
+    const response = await fetch(`${API_BASE}/current-design`);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    currentDesign = data;
+    displayParameters(data.parameters, "parameters-display");
+    displayAnalysis(data.analysis, "analysis-display");
+
+    updateStatus("Loading 3D model...");
+
+    // Load STL into viewer
+    loadSTL(
+      `${API_BASE}/models/current.stl?t=${Date.now()}`,
+      0x667eea,
+      (mesh) => {
+        if (currentMesh) scene.remove(currentMesh);
+        currentMesh = mesh;
+        scene.add(currentMesh);
+        updateStatus("Ready");
+        addMessage("Current design loaded successfully", "system");
+      }
+    );
+  } catch (error) {
+    console.error("Error loading design:", error);
+    addMessage(`Failed to load current design: ${error.message}`, "error");
+    updateStatus("Error");
+  }
+}
+
+// Submit Modification Request
+async function submitModification() {
+  const input = document.getElementById("operator-input").value.trim();
+  if (!input) return;
+
+  addMessage(input, "user");
+  updateStatus("Processing request...");
+  document.getElementById("submit-btn").disabled = true;
+
+  try {
+    const response = await fetch(`${API_BASE}/modify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input }),
+    });
+
+    const data = await response.json();
+
+    if (data.status === "clarification_needed") {
+      addMessage(data.question, "assistant");
+      updateStatus("Awaiting clarification");
+    } else if (data.status === "success") {
+      modifiedDesign = data;
+
+      addMessage(`Understood: ${data.understood}`, "assistant");
+      addMessage(`Reasoning: ${data.reasoning}`, "assistant");
+
+      // Display modifications
+      displayModificationInfo(data);
+
+      // Load modified STL
+      loadSTL(
+        `${API_BASE}/models/modified.stl?t=${Date.now()}`,
+        0x4caf50,
+        (mesh) => {
+          modifiedMesh = mesh;
+          modifiedMesh.visible = false;
+          scene.add(modifiedMesh);
+
+          // Enable view controls
+          document.getElementById("show-modified").disabled = false;
+          document.getElementById("show-both").disabled = false;
+
+          // Show action buttons
+          document.getElementById("action-buttons").style.display = "flex";
+
+          updateStatus("Review changes and approve/reject");
+        }
+      );
+    } else {
+      addMessage(data.message || "No changes made", "assistant");
+      updateStatus("Ready");
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    addMessage("Error processing request", "error");
+    updateStatus("Error");
+  } finally {
+    document.getElementById("submit-btn").disabled = false;
+  }
+
+  // Clear input field after submission
+  document.getElementById("operator-input").value = "";
+}
+
+// Approve Design
+async function approveDesign() {
+  updateStatus("Approving design...");
+
+  try {
+    const response = await fetch(`${API_BASE}/approve`, {
+      method: "POST",
+    });
+
+    const data = await response.json();
+
+    if (data.status === "approved") {
+      addMessage("Design approved! This is now the current design.", "system");
+
+      // Replace current with modified
+      if (currentMesh) scene.remove(currentMesh);
+      currentMesh = modifiedMesh;
+      modifiedMesh = null;
+
+      currentDesign = modifiedDesign;
+      modifiedDesign = null;
+
+      // Reset UI
+      document.getElementById("action-buttons").style.display = "none";
+      document.getElementById("modification-info").style.display = "none";
+      document.getElementById("show-modified").disabled = true;
+      document.getElementById("show-both").disabled = true;
+
+      switchView("current");
+      displayParameters(currentDesign.new_parameters, "parameters-display");
+      displayAnalysis(currentDesign.analysis, "analysis-display");
+
+      updateStatus("Ready for next modification");
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    addMessage("Error approving design", "error");
+  }
+}
+
+// Reject Design
+function rejectDesign() {
+  addMessage(
+    "Changes rejected. Please describe what you'd like to modify.",
+    "system"
+  );
+
+  // Remove modified mesh
+  if (modifiedMesh) {
+    scene.remove(modifiedMesh);
+    modifiedMesh = null;
+  }
+  
+  // Clear modified design data
+  modifiedDesign = null;
+
+  // Reset UI
+  document.getElementById("action-buttons").style.display = "none";
+  document.getElementById("modification-info").style.display = "none";
+  document.getElementById("show-modified").disabled = true;
+  document.getElementById("show-both").disabled = true;
+
+  // Revert parameters display to current design
+  displayParameters(currentDesign.parameters, "parameters-display");
+  displayAnalysis(currentDesign.analysis, "analysis-display");
+
+  switchView("current");
+  updateStatus("Ready");
+}
+
+// Switch View Mode
+function switchView(mode) {
+  viewerMode = mode;
+
+  // Update button states
+  document.querySelectorAll(".viewer-controls .btn").forEach((btn) => {
+    btn.classList.remove("active");
+  });
+
+  if (mode === "current") {
+    document.getElementById("show-current").classList.add("active");
+    if (currentMesh) currentMesh.visible = true;
+    if (modifiedMesh) modifiedMesh.visible = false;
+  } else if (mode === "modified") {
+    document.getElementById("show-modified").classList.add("active");
+    if (currentMesh) currentMesh.visible = false;
+    if (modifiedMesh) modifiedMesh.visible = true;
+  } else if (mode === "both") {
+    document.getElementById("show-both").classList.add("active");
+    if (currentMesh) {
+      currentMesh.visible = true;
+      currentMesh.material.opacity = 0.5;
+    }
+    if (modifiedMesh) {
+      modifiedMesh.visible = true;
+      modifiedMesh.position.x = 1000; // Offset for comparison
+    }
+  }
+}
+
+// Display Functions
+function displayParameters(params, containerId) {
+  const container = document.getElementById(containerId);
+  let html = "";
+
+  for (const [key, value] of Object.entries(params)) {
+    const displayName = key
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase());
+    html += `
+            <div class="param-row">
+                <span class="param-name">${displayName}:</span>
+                <span class="param-value">${value} mm</span>
+            </div>
+        `;
+  }
+
+  container.innerHTML = html;
+}
+
+function displayParametersWithChanges(newParams, modifications) {
+  const container = document.getElementById("parameters-display");
+  let html =
+    '<h3 style="margin-top: 0; color: #4caf50;">Modified Parameters</h3>';
+
+  for (const [key, value] of Object.entries(newParams)) {
+    const displayName = key
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase());
+
+    // Check if this parameter was modified
+    const isModified = modifications.hasOwnProperty(key);
+    const oldValue = currentDesign.parameters[key];
+
+    if (isModified) {
+      // Highlight changed parameters
+      html += `
+            <div class="param-row" style="background-color: #e8f5e9; border-left: 3px solid #4caf50; padding-left: 8px;">
+                <span class="param-name">${displayName}:</span>
+                <span class="param-value">
+                    <span style="text-decoration: line-through; color: #999;">${oldValue} mm</span>
+                    <span style="color: #4caf50; font-weight: bold;"> → ${value} mm</span>
+                </span>
+            </div>
+        `;
+    } else {
+      // Unchanged parameters
+      html += `
+            <div class="param-row">
+                <span class="param-name">${displayName}:</span>
+                <span class="param-value">${value} mm</span>
+            </div>
+        `;
+    }
+  }
+
+  container.innerHTML = html;
+}
+
+function displayAnalysis(analysis, containerId) {
+  const container = document.getElementById(containerId);
+  let html = "";
+
+  if (analysis.volume_liters) {
+    html += `
+            <div class="param-row">
+                <span class="param-name">Volume:</span>
+                <span class="param-value">${analysis.volume_liters.toFixed(
+                  2
+                )} L</span>
+            </div>
+        `;
+  }
+
+  if (analysis.height_mm) {
+    html += `
+            <div class="param-row">
+                <span class="param-name">Height:</span>
+                <span class="param-value">${analysis.height_mm.toFixed(
+                  0
+                )} mm</span>
+            </div>
+        `;
+  }
+
+  container.innerHTML = html || '<div class="loading">No analysis data</div>';
+}
+
+function displayModificationInfo(data) {
+  const container = document.getElementById("modification-info");
+  const changesDiv = document.getElementById("changes-summary");
+  const reasoningDiv = document.getElementById("reasoning");
+
+  let changesHTML = "<ul>";
+  for (const [key, value] of Object.entries(data.modifications)) {
+    const displayName = key
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase());
+    const oldValue = currentDesign.parameters[key];
+    changesHTML += `<li><strong>${displayName}:</strong> ${oldValue}mm → ${value}mm</li>`;
+  }
+  changesHTML += "</ul>";
+
+  changesDiv.innerHTML = changesHTML;
+  reasoningDiv.innerHTML = `<p><strong>Reasoning:</strong> ${data.reasoning}</p>`;
+
+  container.style.display = "block";
+
+  // Display new parameters with highlighted changes
+  if (data.new_parameters) {
+    displayParametersWithChanges(data.new_parameters, data.modifications);
+  }
+
+  // Display new analysis
+  if (data.analysis) {
+    displayAnalysis(data.analysis, "analysis-display");
+  }
+}
+
+function addMessage(text, type) {
+  const chatHistory = document.getElementById("chat-history");
+  const messageDiv = document.createElement("div");
+  messageDiv.className = `message ${type}-message`;
+  messageDiv.textContent = text;
+  chatHistory.appendChild(messageDiv);
+  chatHistory.scrollTop = chatHistory.scrollHeight;
+}
+
+function updateStatus(text) {
+  document.getElementById("status-text").textContent = `● ${text}`;
+}
