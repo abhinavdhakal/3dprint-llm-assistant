@@ -2,26 +2,26 @@
 const App = {
   // Initialize application
   init() {
-    console.log("🚀 App initializing...");
+    console.log("[APP] Initializing...");
     try {
-      console.log("📐 Initializing viewer...");
+      console.log("[VIEWER] Initializing viewer...");
       Viewer.init();
 
-      console.log("🔧 Initializing slicer...");
+      console.log("[SLICER] Initializing slicer...");
       Slicer.init();
 
-      console.log("🎤 Initializing speech recognition...");
+      console.log("[SPEECH] Initializing speech recognition...");
       Speech.init();
 
-      console.log("📥 Loading current design...");
+      console.log("[DESIGN] Loading current design...");
       this.loadCurrentDesign();
 
-      console.log("🎯 Setting up event listeners...");
+      console.log("[EVENTS] Setting up event listeners...");
       this.setupEventListeners();
 
-      console.log("✅ App initialized successfully");
+      console.log("[APP] Initialized successfully");
     } catch (error) {
-      console.error("❌ Error during initialization:", error);
+      console.error("[ERROR] Error during initialization:", error);
       alert("Failed to initialize app: " + error.message);
     }
   },
@@ -191,15 +191,10 @@ const App = {
     UI.displayParameters(data.parameters, "parameters-display");
     UI.displayAnalysis(data.analysis, "analysis-display");
 
-    // Restore project name - prefer backend value, fallback to localStorage
-    let projectName =
-      data.project_name || localStorage.getItem("currentProjectName");
-    if (projectName) {
-      UI.updateProjectName(projectName);
-      // Sync to localStorage if it came from backend
-      if (data.project_name) {
-        localStorage.setItem("currentProjectName", projectName);
-      }
+    // Restore project name from localStorage if available
+    const savedProjectName = localStorage.getItem("currentProjectName");
+    if (savedProjectName) {
+      UI.updateProjectName(savedProjectName);
     }
 
     // Load history from backend first
@@ -208,11 +203,11 @@ const App = {
     if (!historyLoaded) {
       // If backend history doesn't exist, initialize with current design
       History.init(data);
-      console.log("📚 Initialized new history with current design");
+      console.log("[HISTORY] Initialized new history with current design");
       UI.addMessage(
         '<i class="fas fa-lightbulb"></i> Tip: History is only saved when you Approve designs',
         "system",
-        true
+        true // isHTML
       );
     } else {
       // Sync the history index with the backend's current version
@@ -223,7 +218,7 @@ const App = {
       UI.addMessage(
         `<i class="fas fa-history"></i> Loaded ${History.versions.length} saved versions from history`,
         "system",
-        true
+        true // isHTML
       );
     }
 
@@ -245,7 +240,7 @@ const App = {
   async submitModification() {
     // Prevent concurrent operations
     if (AppState.isLoading) {
-      console.log("⏸️ Operation in progress, ignoring submit");
+      console.log("[APP] Operation in progress, ignoring submit");
       return;
     }
 
@@ -286,16 +281,10 @@ const App = {
       UI.addMessage(`Understood: ${data.understood}`, "assistant");
       UI.addMessage(`Reasoning: ${data.reasoning}`, "assistant");
 
-      // Display modifications in right panel
-      console.log("📊 Displaying modification info:", data);
-      try {
-        UI.displayModificationInfo(data);
-      } catch (error) {
-        console.error("❌ Error displaying modification info:", error);
-      }
+      // Display modifications
+      UI.displayModificationInfo(data);
 
       // Load modified STL
-      console.log("🔄 Loading modified STL...");
       Viewer.loadSTL(
         API.getSTLUrl("modified.stl"),
         CONFIG.COLORS.MODIFIED_MESH,
@@ -307,7 +296,6 @@ const App = {
           UI.enableViewButtons();
 
           // Show action buttons
-          console.log("👆 Showing action buttons");
           UI.showActionButtons();
 
           // Automatically switch to "both" view to show the comparison
@@ -331,7 +319,7 @@ const App = {
   async approveDesign() {
     // Prevent concurrent operations
     if (AppState.isLoading) {
-      console.log("⏸️ Operation in progress, ignoring approve");
+      console.log("[APP] Operation in progress, ignoring approve");
       return;
     }
 
@@ -433,12 +421,12 @@ const App = {
   async rejectDesign() {
     // Prevent concurrent operations
     if (AppState.isLoading) {
-      console.log("⏸️ Operation in progress, ignoring reject");
+      console.log("[APP] Operation in progress, ignoring reject");
       return;
     }
 
     AppState.isLoading = true;
-    console.log("🚫 Rejecting design");
+    console.log("[DESIGN] Rejecting design");
 
     UI.addMessage("Changes rejected. Keeping current design.", "system");
 
@@ -471,14 +459,14 @@ const App = {
     UI.updateStatus("Ready");
     AppState.isLoading = false;
 
-    console.log("✅ Design rejected, showing current design");
+    console.log("[DESIGN] Design rejected, showing current design");
   },
 
   // Handle undo
   handleUndo() {
     // Prevent concurrent operations
     if (AppState.isLoading) {
-      console.log("⏸️ Operation in progress, ignoring undo");
+      console.log("[APP] Operation in progress, ignoring undo");
       return;
     }
 
@@ -493,7 +481,7 @@ const App = {
   handleRedo() {
     // Prevent concurrent operations
     if (AppState.isLoading) {
-      console.log("⏸️ Operation in progress, ignoring redo");
+      console.log("[APP] Operation in progress, ignoring redo");
       return;
     }
 
@@ -509,9 +497,9 @@ const App = {
     // Set loading flag
     AppState.isLoading = true;
 
-    console.log("📖 Loading version from history:", version.description);
-    console.log("   Version object:", version);
-    console.log("   Version number:", version.version);
+    console.log("[HISTORY] Loading version from history:", version.description);
+    console.log("[HISTORY] Version object:", version);
+    console.log("[HISTORY] Version number:", version.version);
     UI.updateStatus("Loading version...");
 
     // Clear any modified design first
@@ -523,7 +511,7 @@ const App = {
     // Check if we have a version number (new method)
     if (version.version) {
       console.log(
-        "   Using restore-version API with version:",
+        "[HISTORY] Using restore-version API with version:",
         version.version
       );
       const result = await API.restoreVersion(version.version);
@@ -565,11 +553,13 @@ const App = {
     }
 
     // Fallback: Old method using parameters (deprecated)
-    console.warn("⚠️ No version number - using legacy parameter update method");
+    console.warn(
+      "[HISTORY] No version number - using legacy parameter update method"
+    );
     const parameters = version.design?.parameters || version.parameters;
 
     if (!parameters) {
-      console.error("❌ No parameters found in version:", version);
+      console.error("[ERROR] No parameters found in version:", version);
       UI.addMessage("Error: Version has no parameters", "error");
       UI.updateStatus("Error");
       AppState.isLoading = false;
@@ -577,7 +567,7 @@ const App = {
     }
 
     const description = version.description || "version_loaded";
-    console.log("📤 Using legacy updateParameters:", {
+    console.log("[HISTORY] Using legacy updateParameters:", {
       parameters,
       description,
       createBackup: false,
@@ -590,7 +580,7 @@ const App = {
     );
 
     if (!result.success) {
-      console.error("❌ Backend error:", result.error);
+      console.error("[ERROR] Backend error:", result.error);
       UI.addMessage(`Failed to load version: ${result.error}`, "error");
       UI.updateStatus("Error");
       AppState.isLoading = false;
@@ -601,7 +591,7 @@ const App = {
     AppState.setCurrentDesign(version.design || { parameters, analysis: null });
 
     // Update UI
-    console.log("🎨 Updating UI with parameters:", parameters);
+    console.log("[UI] Updating UI with parameters:", parameters);
     UI.displayParameters(parameters, "parameters-display");
     if (version.design?.analysis) {
       UI.displayAnalysis(version.design.analysis, "analysis-display");
@@ -614,17 +604,17 @@ const App = {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Reload the regenerated STL
-    console.log("🔄 Reloading STL from backend...");
+    console.log("[VIEWER] Reloading STL from backend...");
     Viewer.loadSTL(
       API.getSTLUrl("current.stl"),
       CONFIG.COLORS.CURRENT_MESH,
       (mesh) => {
-        console.log("✅ New mesh loaded, updating scene");
+        console.log("[VIEWER] New mesh loaded, updating scene");
         AppState.setCurrentMesh(mesh);
         Viewer.switchView("current");
         UI.updateStatus("Ready");
         AppState.isLoading = false;
-        console.log("✅ Version loaded successfully");
+        console.log("[HISTORY] Version loaded successfully");
       }
     );
   },
@@ -662,8 +652,8 @@ const App = {
 
 // Initialize when DOM is ready
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("📄 DOM loaded, starting app...");
-  console.log("🔍 Checking required modules:");
+  console.log("[DOM] DOM loaded, starting app...");
+  console.log("[MODULES] Checking required modules:");
   console.log("  - CONFIG:", typeof CONFIG);
   console.log("  - AppState:", typeof AppState);
   console.log("  - History:", typeof History);
@@ -675,7 +665,7 @@ document.addEventListener("DOMContentLoaded", () => {
   try {
     App.init();
   } catch (error) {
-    console.error("❌ Fatal error:", error);
+    console.error("[ERROR] Fatal error:", error);
     alert(
       "Failed to start app: " + error.message + "\n\nCheck console for details."
     );

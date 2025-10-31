@@ -314,7 +314,37 @@ const API = {
       return { success: false, error: error.message };
     }
   },
+
+  // Set project name (backend)
+  async setProjectName(projectName) {
+    try {
+      console.log(`📝 API: Setting project name to "${projectName}"`);
+
+      const response = await fetch(`${CONFIG.API_BASE}/set-project-name`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          project_name: projectName,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to set project name");
+      }
+
+      console.log("✅ Project name set on backend");
+      return { success: true, data };
+    } catch (error) {
+      console.error("❌ Error setting project name:", error);
+      return { success: false, error: error.message };
+    }
+  },
 };
 
 // Export to global scope
 window.API = API;
+

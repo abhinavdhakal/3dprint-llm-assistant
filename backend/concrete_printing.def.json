@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "name": "Concrete Printing",
+  "inherits": "fdmprinter",
+  "metadata": {
+    "author": "Concrete Assistant",
+    "description": "Profile for concrete 3D printing: large nozzle, thick layers, perimeter-only, no infill."
+  },
+  "settings": {
+    "layer_height": { "default_value": 15 },
+    "wall_line_count": { "default_value": 2 },
+    "wall_thickness": { "default_value": 60 },
+    "infill_density": { "default_value": 0 },
+    "print_speed": { "default_value": 100 },
+    "nozzle_size": { "default_value": 30 },
+    "material_type": { "default_value": "concrete" },
+    "material_density": { "default_value": 2400 }
+  }
+}

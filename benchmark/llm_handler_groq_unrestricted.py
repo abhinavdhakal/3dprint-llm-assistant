@@ -1,0 +1,384 @@
+import json
+import os
+from dotenv import load_dotenv
+from openai import OpenAI
+
+class LLMHandler:
+    def __init__(self):
+        # Load environment variables from .env file
+        load_dotenv()
+        
+        # Initialize OpenAI client with Groq base URL
+        self.client = OpenAI(
+            api_key=os.environ.get("GROQ_API_KEY"),
+            base_url="https://api.groq.com/openai/v1",
+        )
+        
+        if not os.environ.get("GROQ_API_KEY"):
+            print("⚠️ WARNING: GROQ_API_KEY not found in .env file!")
+            print("Add it to backend/.env file: GROQ_API_KEY='your-key-here'")
+        
+        # Groq models - using current supported models
+        self.model = "llama-3.3-70b-versatile"  # Latest, fast, high quality
+    
+    def interpret_modification(self, user_input, full_scad_content, current_params=None):
+        """
+        UNRESTRICTED MODE - Can do any modifications, always uses full SCAD
+        """
+        print(f"🔓 UNRESTRICTED MODE - Full SCAD processing")
+        return self._interpret_with_full_scad(user_input, full_scad_content)
+    
+    def _interpret_with_full_scad(self, user_input, full_scad_content):
+        """Full SCAD modification mode - can add/remove/modify anything"""
+        
+        system_prompt = """You are an expert OpenSCAD programmer specializing in concrete 3D printing design.
+
+OPENSCAD FUNDAMENTALS:
+- Statements end with semicolons
+- Use lowerCamel or snake_case consistently
+- Variables are immutable after definition
+- Add unit comments (mm) for all dimensions
+- Keep line length under 100 characters
+
+PRIMITIVES:
+- cube([x, y, z], center = true);
+- sphere(r = R, $fn = N);
+- cylinder(h = H, r = R, r2 = R2, center = true, $fn = N);
+- polyhedron(points = [...], faces = [...]);
+
+TRANSFORMS:
+- translate([x, y, z]) { ... }
+- rotate([a, b, c]) { ... }
+- scale([sx, sy, sz]) { ... }
+- mirror([nx, ny, nz]) { ... }
+
+BOOLEAN OPERATIONS (order matters):
+- union() { ... } groups objects
+- difference() { keep; cut1; cut2; ... } subtracts cut1, cut2 from keep
+- intersection() { ... }
+
+CRITICAL OpenSCAD structure rules for concrete buildings:
+- Use difference() to REMOVE material (doors, windows, interior cavity)
+- Use union() to ADD material (dividing walls, columns, roofs, extra features)
+- Dividing walls MUST be ADDED with union(), NOT subtracted
+- Example for adding dividing walls:
+  union() {
+      difference() {
+          cube([...]); // Outer shell
+          translate(...) cube([...]); // Hollow interior  
+          translate(...) cube([...]); // Door/window openings
+      }
+      // Add dividing walls HERE (inside union, outside difference):
+      translate(...) cube([divider_thickness, room_width, wall_height]);
+  }
+
+POLYHEDRON syntax (for roofs, pyramids, etc):
+- Use polyhedron(points=[...], faces=[...]) NOT triangles parameter
+- points: list of 3D coordinates [[x,y,z], ...]
+- faces: list of point indices for each face
+- Faces must be defined with correct winding order (counterclockwise from outside)
+- Example pyramid with base:
+  polyhedron(
+    points=[[0,0,0], [10,0,0], [10,10,0], [0,10,0], [5,5,10]],
+    faces=[
+      [0,1,4],    // side 1
+      [1,2,4],    // side 2
+      [2,3,4],    // side 3
+      [3,0,4],    // side 4
+      [0,3,2,1]   // base (must be included!)
+    ]
+  );
+
+CONCRETE 3D PRINTING design principles:
+- Wall thickness: minimum 200mm for structural integrity
+- Door height: typically 2100mm (standard residential)
+- Door width: typically 800-900mm
+- Window sill height: typically 900mm from floor
+- Wall height: typically 2800mm (standard ceiling)
+- All measurements in millimeters
+
+PARAMETRIZATION:
+- Expose key variables at top with clear names
+- Group related parameters in sections with comments
+- Use descriptive names: room_length, wall_thickness, door_width
+- Calculate positions from parameters, NOT hardcoded values
+- Example centering: translate([(room_width - window_width)/2, ...])
+- Example back wall: translate([..., room_width - wall_thickness, ...])
+
+MODULE STRUCTURE:
+- Keep modules focused and under 60 lines
+- Use explicit named parameters
+- Add comments for units and purpose
+- End file with module call (e.g., room();)
+
+VALIDATION:
+- All code must be complete and valid OpenSCAD
+- Must include ALL parameters at top
+- Must include ALL modules
+- Must include final module call at bottom
+- Test polyhedron faces are properly defined
+
+Return complete, valid OpenSCAD code that will render properly."""
+
+        user_prompt = f"""Current OpenSCAD design:
+
+```scad
+{full_scad_content}
+```
+
+User's modification request:
+"{user_input}"
+
+CRITICAL INSTRUCTIONS:
+1. PRESERVE ALL EXISTING FEATURES unless explicitly asked to remove them
+2. Only make the changes requested - do not simplify or restructure unnecessarily
+3. Use existing parameter names and add new ones if needed
+4. Calculate positions mathematically using parameters (e.g., room_width/2 for centering)
+5. Do NOT hardcode positions - use parameter-based calculations
+6. Keep all existing doors, windows, walls, dividers, roofs that aren't being modified
+7. When adding ONE new feature, copy the ENTIRE existing code and add ONLY that feature
+8. Do NOT remove or rewrite existing geometry - just add the new part
+
+Example of CORRECT approach for "add a new window":
+- Copy ALL existing difference() blocks for doors and windows
+- Add ONE new translate() cube() for the new window
+- Keep ALL existing parameters
+- Add new parameters only if needed
+- Result: existing code + 3 new lines for the window
+
+Example of WRONG approach:
+- Rewriting the entire room from scratch
+- Removing existing features
+- Simplifying the structure
+- Changing parameter names
+
+FEW-SHOT EXAMPLE:
+If current code has 4 rooms with dividers and user says "add a window in wall X":
+CORRECT: Keep all 4 rooms, all dividers, all existing features + add ONE window
+WRONG: Simplify to 1 room + add the window
+
+If current code has pyramid roof and user says "add a door":
+CORRECT: Keep the pyramid roof + add ONE door
+WRONG: Remove pyramid roof, add door, make simple room
+
+Analyze the request and modify the OpenSCAD code accordingly. You can:
+- Add new features (doors, windows, walls, roofs)
+- Modify existing parameters
+- Remove features if explicitly requested
+- BUT: Preserve everything not mentioned in the request
+
+Return ONLY a JSON object in this EXACT format:
+{{
+    "understood": "Clear summary of what you understood from the request",
+    "new_scad_code": "Complete modified OpenSCAD code with \\\\n for newlines",
+    "reasoning": "Brief technical explanation of changes made and why",
+    "needs_clarification": false,
+    "changes_summary": [
+        "Specific change 1",
+        "Specific change 2",
+        "Specific change 3"
+    ]
+}}
+
+CRITICAL formatting rules:
+1. Use \\\\n for line breaks in new_scad_code (not actual newlines)
+2. Escape quotes as \\\\"
+3. Return ONLY the JSON object, no markdown, no extra text
+4. The new_scad_code must be COMPLETE and VALID OpenSCAD syntax
+5. Include ALL parameters, modules, AND the final call to generate geometry
+6. MUST end with the module call (e.g., "room();" at the end)
+7. Do NOT return partial code - return the ENTIRE working SCAD file"""
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.2,  # Lower for more consistent output
+                max_tokens=8000,  # Large token limit for complex designs
+                top_p=0.95
+            )
+            
+            response_text = response.choices[0].message.content
+            
+            print("\n" + "="*80)
+            print("🔓 GROQ UNRESTRICTED RESPONSE:")
+            print("="*80)
+            print(response_text[:500] + "..." if len(response_text) > 500 else response_text)
+            print("="*80 + "\n")
+            
+            # Parse JSON
+            parsed = self._parse_json_response(response_text)
+            
+            # Ensure required fields
+            if 'mode' not in parsed:
+                parsed['mode'] = 'code_modification'
+            if 'changes_summary' not in parsed:
+                parsed['changes_summary'] = []
+            
+            # Fix if SCAD code returned as array
+            if isinstance(parsed.get('new_scad_code'), list):
+                print("⚙️ SCAD code returned as array, joining...")
+                parsed['new_scad_code'] = ''.join(parsed['new_scad_code'])
+            
+            # Fix literal \n in SCAD code - convert to actual newlines
+            if 'new_scad_code' in parsed and isinstance(parsed['new_scad_code'], str):
+                # Replace literal \n with actual newlines
+                parsed['new_scad_code'] = parsed['new_scad_code'].replace('\\n', '\n')
+                # Replace literal \t with actual tabs
+                parsed['new_scad_code'] = parsed['new_scad_code'].replace('\\t', '\t')
+                print("✅ Fixed escaped newlines in SCAD code")
+                
+                # Validate SCAD code completeness
+                scad_code = parsed['new_scad_code'].strip()
+                
+                # Check if it has a module call at the end (e.g., "room();")
+                if 'module ' in scad_code and not scad_code.rstrip().endswith(');'):
+                    # Find module name
+                    import re
+                    module_match = re.search(r'module\s+(\w+)\s*\(', scad_code)
+                    if module_match:
+                        module_name = module_match.group(1)
+                        # Append the module call
+                        parsed['new_scad_code'] = scad_code + '\n\n// Generate the design\n' + module_name + '();\n'
+                        print(f"⚠️ Added missing module call: {module_name}();")
+            
+            return parsed
+            
+        except Exception as e:
+            print(f"❌ Error in unrestricted mode: {e}")
+            import traceback
+            traceback.print_exc()
+            return self._fallback_response()
+    
+    def _parse_json_response(self, response_text):
+        """Parse JSON from LLM response with robust error handling"""
+        # Remove markdown code blocks
+        response_text = response_text.replace('```json', '').replace('```', '')
+        
+        # Remove preambles
+        if 'Here is' in response_text[:50] or 'Here\'s' in response_text[:50]:
+            lines = response_text.split('\n')
+            for i, line in enumerate(lines):
+                if line.strip().startswith('{'):
+                    response_text = '\n'.join(lines[i:])
+                    break
+        
+        response_text = response_text.strip()
+        
+        # Remove trailing notes after closing brace
+        last_brace = response_text.rfind('}')
+        if last_brace != -1:
+            response_text = response_text[:last_brace + 1]
+        
+        # Find JSON
+        start = response_text.find('{')
+        end = response_text.rfind('}') + 1
+        
+        if start == -1 or end == 0:
+            raise ValueError("No JSON found in response")
+        
+        json_str = response_text[start:end]
+        
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            if 'control character' in str(e):
+                print("⚠️ Fixing literal newlines in JSON...")
+                json_str = self._fix_literal_newlines(json_str)
+                return json.loads(json_str)
+            raise
+    
+    def _fix_literal_newlines(self, json_str):
+        """Fix JSON where string values have literal newlines"""
+        import re
+        
+        # Find new_scad_code field with literal newlines
+        scad_start = json_str.find('"new_scad_code":')
+        if scad_start == -1:
+            return json_str
+        
+        quote_start = json_str.find('"', scad_start + len('"new_scad_code":'))
+        if quote_start == -1:
+            return json_str
+        
+        code_start = quote_start + 1
+        
+        # Find where SCAD code ends (next JSON field)
+        next_field = re.search(r',\s*"(reasoning|needs_clarification|changes_summary)":', json_str[code_start:])
+        if not next_field:
+            return json_str
+        
+        code_end = code_start + next_field.start()
+        scad_code = json_str[code_start:code_end].rstrip().rstrip('"').rstrip()
+        
+        # Properly escape
+        scad_code_escaped = json.dumps(scad_code)
+        
+        # Reconstruct
+        fixed_json = (
+            json_str[:scad_start] +
+            '"new_scad_code": ' +
+            scad_code_escaped +
+            json_str[code_end:].lstrip().lstrip('"')
+        )
+        
+        print("✅ Fixed literal newlines")
+        return fixed_json
+    
+    def _fallback_response(self):
+        """Return safe fallback when LLM fails"""
+        return {
+            "understood": "Error communicating with LLM",
+            "mode": "error",
+            "modifications": {},
+            "reasoning": "There was an error processing your request. Please try rephrasing or check the logs.",
+            "needs_clarification": True,
+            "clarification_question": "Could you rephrase that request?"
+        }
+
+def call_groq_llm(prompt, scad_content=None):
+    """
+    Call Groq LLM for SCAD modification (unrestricted mode).
+    Returns dict with llm_output, stl_time, total_time, stl_text
+    """
+    import time
+    start_time = time.time()
+    
+    handler = LLMHandler()
+    
+    try:
+        result = handler.interpret_modification(prompt, scad_content or "")
+        
+        # Extract the modified SCAD from the result
+        llm_output = result.get("new_scad_code", "")
+        
+        # Simulate STL generation (replace with actual logic)
+        stl_start = time.time()
+        # Your STL generation code here
+        stl_time = (time.time() - stl_start) * 1000  # ms
+        
+        total_time = (time.time() - start_time) * 1000  # ms
+        
+        return {
+            "llm_output": llm_output,
+            "stl_time": stl_time,
+            "total_time": total_time,
+            "stl_text": "Generated STL content here"  # Replace with actual STL
+        }
+        
+    except Exception as e:
+        return {
+            "error": str(e),
+            "llm_output": "",
+            "stl_time": 0,
+            "total_time": (time.time() - start_time) * 1000
+        }
+
+# Function interface for benchmark compatibility
+def call_groq_llm(user_input, full_scad_content, current_params=None):
+    """Function interface for unrestricted Groq LLM calls"""
+    handler = LLMHandler()
+    return handler.interpret_modification(user_input, full_scad_content, current_params)

@@ -170,10 +170,24 @@ const ImportExport = {
         // Clean up the name (remove special characters)
         projectName = projectName.replace(/[^a-zA-Z0-9_-]/g, "_");
 
-        // Store project name
+        // Store project name in localStorage
         localStorage.setItem("lastSaveProject", projectName);
         localStorage.setItem("currentProjectName", projectName);
         console.log(`📝 Project named: ${projectName}`);
+
+        // Send project name to backend for persistence
+        try {
+          if (typeof API !== "undefined" && API.setProjectName) {
+            await API.setProjectName(projectName);
+          } else {
+            console.warn(
+              "API.setProjectName not available - please refresh the page"
+            );
+          }
+        } catch (error) {
+          console.error("Failed to set project name on backend:", error);
+          // Continue anyway - localStorage has the name
+        }
 
         // Update project name display
         UI.updateProjectName(projectName);
@@ -458,6 +472,12 @@ const ImportExport = {
       }
       if (AppState.modifiedMesh) {
         AppState.setModifiedMesh(null);
+      }
+
+      // Clear toolpaths and gcode visualization
+      if (typeof Viewer !== "undefined" && Viewer.clearToolpaths) {
+        Viewer.clearToolpaths();
+        console.log("🗑️  Cleared toolpaths and gcode");
       }
 
       // Clear localStorage

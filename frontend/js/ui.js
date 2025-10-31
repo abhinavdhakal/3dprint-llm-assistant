@@ -77,6 +77,10 @@ const UI = {
   // Display analysis data
   displayAnalysis(analysis, containerId) {
     const container = document.getElementById(containerId);
+
+    // Analysis display section removed - dimensions now shown in collapsible overlay
+    if (!container) return;
+
     let html = "";
 
     // Handle null or empty analysis
@@ -158,11 +162,17 @@ const UI = {
   },
 
   // Add message to chat
-  addMessage(text, type) {
+  addMessage(text, type, isHTML = false) {
     const chatHistory = document.getElementById("chat-history");
     const messageDiv = document.createElement("div");
     messageDiv.className = `message ${type}-message`;
-    messageDiv.textContent = text;
+
+    if (isHTML) {
+      messageDiv.innerHTML = text;
+    } else {
+      messageDiv.textContent = text;
+    }
+
     chatHistory.appendChild(messageDiv);
     chatHistory.scrollTop = chatHistory.scrollHeight;
   },
@@ -350,7 +360,7 @@ const UI = {
     const display = document.getElementById("project-name-display");
     if (display) {
       if (projectName) {
-        display.textContent = projectName;
+        display.innerHTML = `<i class="fas fa-file-code"></i>  ${projectName}`;
         display.style.color = "#667eea";
       } else {
         display.textContent = "No project loaded";

@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "active_version": 3,
+  "timestamp": "2025-10-31T10:17:32.295010",
+  "parameters": {
+    "fn": 150,
+    "pipe_length": 1500,
+    "outer_diameter": 900,
+    "wall_thickness": 90
+  },
+  "scad_file": "concrete_pipe.scad",
+  "project_name": null
+}

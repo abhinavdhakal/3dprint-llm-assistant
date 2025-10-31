@@ -40,20 +40,23 @@ python app.py
 
 3. Import a SCAD file or work with the default room design
 
-4. Type what you want to change:
+4. Type what you want to change (or use voice input):
 
    - "add a window to the back wall"
    - "make the door wider"
    - "remove the window"
    - etc.
 
-5. Preview the changes in the 3D viewer
+5. **Voice Input**: Click the "🎤 Voice" button to speak your modification request instead of typing
 
-6. Approve or reject the modification
+6. Preview the changes in the 3D viewer
+
+7. Approve or reject the modification
 
 ## Features
 
 - Natural language modification of OpenSCAD designs
+- **Speech-to-text input using OpenAI Whisper API** (works in all browsers including Brave!)
 - Real-time 3D preview using Three.js
 - Version history with undo/redo
 - Two modification modes:
@@ -62,6 +65,16 @@ python app.py
 - Pending state system (changes only saved on approval)
 - SCAD and STL backups for every version
 - Professional 3D viewer with OrbitControls
+- CAD-like measurement tools with edge snapping
+
+### Voice Input Setup
+
+1. Get an OpenAI API key from https://platform.openai.com/api-keys
+2. Click the "🎤 Voice" button
+3. Enter your API key when prompted (stored in browser)
+4. Allow microphone access
+5. Speak your request, then click "🔴 Stop"
+6. Speech is transcribed automatically!
 
 ## Architecture
 

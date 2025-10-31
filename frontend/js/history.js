@@ -34,7 +34,8 @@ const History = {
         analysis: null,
       }));
 
-      this.currentIndex = this.versions.length - 1; // Set to latest
+      // Don't set currentIndex yet - wait for current design to tell us which version we're on
+      this.currentIndex = this.versions.length - 1; // Temporary default
       console.log(`✅ Loaded ${this.versions.length} versions from backend`);
       this.updateUI();
       return true;
@@ -42,6 +43,33 @@ const History = {
       console.warn("Could not load history from backend:", result.error);
       return false;
     }
+  },
+
+  // Sync current index with backend's current version
+  syncWithCurrentVersion(currentVersion) {
+    console.log(
+      `🔄 Syncing history index with backend version ${currentVersion}`
+    );
+
+    // Find the index of the version that matches the current version number
+    const matchingIndex = this.versions.findIndex(
+      (v) => v.version === currentVersion
+    );
+
+    if (matchingIndex !== -1) {
+      this.currentIndex = matchingIndex;
+      console.log(
+        `✅ Set current index to ${matchingIndex} (version ${currentVersion})`
+      );
+    } else {
+      // If not found, default to latest
+      this.currentIndex = this.versions.length - 1;
+      console.warn(
+        `⚠️ Could not find version ${currentVersion} in history, defaulting to latest`
+      );
+    }
+
+    this.updateUI();
   },
 
   // Add a new version to history

@@ -1,0 +1,74 @@
+{
+  "presets": [
+    {
+      "id": "wasp",
+      "name": "WASP Delta WASP 3MT",
+      "manufacturer": "WASP",
+      "settings": {
+        "layerHeight": 10,
+        "nozzleDiameter": 30,
+        "printSpeed": 80,
+        "travelSpeed": 150,
+        "concreteDensity": 2400,
+        "wasteFactor": 10
+      },
+      "description": "Italian concrete 3D printer, delta configuration"
+    },
+    {
+      "id": "cobod",
+      "name": "COBOD BOD2",
+      "manufacturer": "COBOD",
+      "settings": {
+        "layerHeight": 15,
+        "nozzleDiameter": 50,
+        "printSpeed": 100,
+        "travelSpeed": 200,
+        "concreteDensity": 2350,
+        "wasteFactor": 15
+      },
+      "description": "Large-scale gantry concrete printer"
+    },
+    {
+      "id": "apis",
+      "name": "Apis Cor",
+      "manufacturer": "Apis Cor",
+      "settings": {
+        "layerHeight": 12,
+        "nozzleDiameter": 35,
+        "printSpeed": 90,
+        "travelSpeed": 180,
+        "concreteDensity": 2400,
+        "wasteFactor": 12
+      },
+      "description": "Mobile concrete 3D printer with arm configuration"
+    },
+    {
+      "id": "icon",
+      "name": "ICON Vulcan",
+      "manufacturer": "ICON",
+      "settings": {
+        "layerHeight": 13,
+        "nozzleDiameter": 40,
+        "printSpeed": 85,
+        "travelSpeed": 170,
+        "concreteDensity": 2380,
+        "wasteFactor": 12
+      },
+      "description": "Advanced gantry system for construction-scale printing"
+    },
+    {
+      "id": "cybecon",
+      "name": "CyBe RC 3Dp",
+      "manufacturer": "CyBe Construction",
+      "settings": {
+        "layerHeight": 10,
+        "nozzleDiameter": 25,
+        "printSpeed": 75,
+        "travelSpeed": 160,
+        "concreteDensity": 2420,
+        "wasteFactor": 10
+      },
+      "description": "Compact mobile concrete printer"
+    }
+  ]
+}

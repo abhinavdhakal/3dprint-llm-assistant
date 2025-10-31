@@ -36,6 +36,12 @@ class DesignModifier:
         
         return params
     
+    def refresh_from_file(self):
+        """Re-read the SCAD file and update all cached data"""
+        self.full_scad_content = self.read_scad_file()
+        self.current_params = self.extract_parameters()
+        print(f"🔄 Refreshed from file - parameters: {self.current_params}")
+    
     def _extract_parameters_from_content(self, content):
         """Extract parameters from given SCAD content string"""
         params = {}
@@ -105,6 +111,15 @@ class DesignModifier:
     
     def generate_stl(self, output_path):
         """Generate STL file from .scad using OpenSCAD"""
+        import time
+        start_time = time.time()
+        
+        # Check fn value and warn if it's high
+        fn_value = self.current_params.get('fn', 0)
+        if fn_value > 100:
+            print(f"   ⚠️  Warning: $fn={fn_value} will cause slow rendering (10+ seconds)")
+            print(f"   💡 Recommended: $fn=50-100 for concrete printing")
+        
         try:
             # If we have pending modifications, write to temp file
             scad_to_render = self.scad_file
@@ -121,6 +136,7 @@ class DesignModifier:
                     os.close(temp_fd)
                     raise
             
+            print(f"   🔄 Rendering STL with OpenSCAD...")
             cmd = [
                 'openscad',
                 '-o', output_path,
@@ -144,6 +160,9 @@ class DesignModifier:
             if result.returncode != 0:
                 print(f"OpenSCAD error: {result.stderr}")
                 return False
+            
+            elapsed = time.time() - start_time
+            print(f"   ⏱️  STL generated in {elapsed:.2f}s")
             
             return os.path.exists(output_path)
         except Exception as e:

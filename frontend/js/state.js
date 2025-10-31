@@ -4,6 +4,9 @@ const AppState = {
   currentDesign: null,
   modifiedDesign: null,
 
+  // Loading state
+  isLoading: false,
+
   // View mode: 'current', 'modified', 'both'
   viewerMode: "current",
 
@@ -53,6 +56,16 @@ const AppState = {
   setCurrentMesh(mesh) {
     if (this.currentMesh && this.scene) {
       this.scene.remove(this.currentMesh);
+      // Dispose of geometry and material to free memory
+      if (this.currentMesh.geometry) {
+        this.currentMesh.geometry.dispose();
+      }
+      if (this.currentMesh.material) {
+        if (this.currentMesh.material.map) {
+          this.currentMesh.material.map.dispose();
+        }
+        this.currentMesh.material.dispose();
+      }
     }
     this.currentMesh = mesh;
     if (mesh && this.scene) {

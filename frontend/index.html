@@ -11,6 +11,9 @@
 
     <link rel="stylesheet" href="style.css" />
 
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
     <!-- Three.js and addons -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
@@ -22,8 +25,10 @@
     <!-- Application Modules (order matters!) -->
     <script src="js/config.js"></script>
     <script src="js/state.js"></script>
+    <script src="js/speech.js"></script>
     <script src="js/history.js"></script>
     <script src="js/importexport.js"></script>
+    <script src="js/slicer.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/api.js"></script>
     <script src="js/viewer.js"></script>
@@ -33,23 +38,44 @@
     <div class="container">
       <!-- Header -->
       <header>
-        <h1>🏗️ Concrete 3D Printing Design Assistant</h1>
-        <p>LLM-Assisted Design Modification System</p>
-        <div class="project-header">
-          <div id="project-name-display" class="project-name-display">
-            No project loaded
+        <div class="header-top">
+          <div class="header-title">
+            <h1><i class="fas fa-building"></i> Concrete 3D Printing Design Assistant</h1>
+            <p>LLM-Assisted Design Modification System</p>
           </div>
-          <button
-            id="rename-project-btn"
-            class="btn-rename"
-            title="Rename Project"
-          >
-            ✏️
-          </button>
+          <div class="header-actions">
+            <button
+              id="import-export-btn"
+              class="btn btn-small btn-icon"
+              title="Import / Export Design"
+            >
+              <i class="fas fa-folder-open"></i> Import / Export
+            </button>
+            <button
+              id="history-btn"
+              class="btn btn-small btn-icon"
+              title="Version History"
+            >
+              <i class="fas fa-history"></i> History
+            </button>
+          </div>
         </div>
 
         <!-- Top Toolbar -->
         <div class="toolbar">
+          <div class="toolbar-section">
+            <div id="project-name-display" class="project-name-display">
+              No project loaded
+            </div>
+            <button
+              id="rename-project-btn"
+              class="btn-rename"
+              title="Rename Project"
+            >
+              <i class="fas fa-edit"></i>
+            </button>
+          </div>
+
           <div class="toolbar-section">
             <button
               id="undo-btn"
@@ -57,7 +83,7 @@
               title="Undo"
               disabled
             >
-              ↶ Undo
+              <i class="fas fa-undo"></i> Undo
             </button>
             <button
               id="redo-btn"
@@ -65,28 +91,11 @@
               title="Redo"
               disabled
             >
-              ↷ Redo
+              <i class="fas fa-redo"></i> Redo
             </button>
             <span id="version-counter" class="version-counter"
               >Version 1/1</span
             >
-          </div>
-
-          <div class="toolbar-section">
-            <button
-              id="import-export-btn"
-              class="btn btn-small btn-icon"
-              title="Import / Export Design"
-            >
-              📁 Import / Export
-            </button>
-            <button
-              id="history-btn"
-              class="btn btn-small btn-icon"
-              title="Version History"
-            >
-              📜 History
-            </button>
           </div>
         </div>
 
@@ -100,28 +109,28 @@
           <div class="menu-section">
             <h4>Project</h4>
             <button id="new-project-btn" class="btn btn-small btn-block">
-              📄 New Project
+              <i class="fas fa-file"></i> New Project
             </button>
             <button id="save-project-btn" class="btn btn-small btn-block">
-              💾 Save Project
+              <i class="fas fa-save"></i> Save Project
             </button>
             <button id="open-project-btn" class="btn btn-small btn-block">
-              📂 Open Project
+              <i class="fas fa-folder-open"></i> Open Project
             </button>
           </div>
           <div class="menu-section">
             <h4>Import</h4>
             <button id="import-scad-btn" class="btn btn-small btn-block">
-              📐 Import OpenSCAD File
+              <i class="fas fa-file-import"></i> Import OpenSCAD File
             </button>
           </div>
           <div class="menu-section">
             <h4>Export</h4>
             <button id="export-stl-btn" class="btn btn-small btn-block">
-              🗿 Export STL
+              <i class="fas fa-cube"></i> Export STL
             </button>
             <button id="export-scad-btn" class="btn btn-small btn-block">
-              📐 Export SCAD
+              <i class="fas fa-file-code"></i> Export SCAD
             </button>
           </div>
         </div>
@@ -153,17 +162,23 @@
               placeholder="Enter modification request (e.g., 'Make the wall 500mm taller')"
               rows="3"
             ></textarea>
-            <button id="submit-btn" class="btn btn-primary">
-              Submit Request
-            </button>
+            <div style="display: flex; gap: 10px;">
+              <button id="voice-btn" class="btn btn-primary" title="Voice input" style="flex:2 ;">
+                <i class="fas fa-microphone"></i> Voice
+              </button>
+              <button id="submit-btn" class="btn btn-success" style="flex: 1;">
+                <i class="fas fa-check"></i>
+                Submit
+              </button>
+            </div>
           </div>
 
           <div id="action-buttons" class="action-buttons" style="display: none">
             <button id="approve-btn" class="btn btn-success">
-              ✓ Approve Changes
+              <i class="fas fa-check"></i> Approve Changes
             </button>
             <button id="reject-btn" class="btn btn-danger">
-              ✗ Request More Changes
+              <i class="fas fa-times"></i> Request More Changes
             </button>
           </div>
         </div>
@@ -187,21 +202,21 @@
               class="btn btn-small"
               title="Toggle dimension overlay"
             >
-              📏 Dimensions
+              <i class="fas fa-ruler-combined"></i> Dimensions
             </button>
             <button
               id="toggle-measurement"
               class="btn btn-small"
               title="Measure distance between points"
             >
-              📐 Measure
+              <i class="fas fa-ruler"></i> Measure
             </button>
           </div>
 
           <div id="viewer-container" class="viewer-container"></div>
 
           <div class="viewer-info">
-            <span>🖱️ Left-drag: Rotate | Right-drag: Pan | Scroll: Zoom</span>
+            <span><i class="fas fa-mouse"></i> Left-drag: Rotate | Right-drag: Pan | Scroll: Zoom</span>
           </div>
         </div>
 
@@ -213,11 +228,6 @@
             <div class="loading">Loading design...</div>
           </div>
 
-          <h3>Design Analysis</h3>
-          <div id="analysis-display" class="analysis-display">
-            <div class="loading">Analyzing...</div>
-          </div>
-
           <div
             id="modification-info"
             class="modification-info"
@@ -226,6 +236,132 @@
             <h3>Proposed Changes</h3>
             <div id="changes-summary"></div>
             <div id="reasoning"></div>
+          </div>
+
+          <!-- Concrete Printer Section -->
+          <div class="printer-section">
+            <h3><i class="fas fa-print"></i> Concrete Printer</h3>
+            <button id="open-slicer-btn" class="btn btn-primary" style="width: 100%;">
+              <i class="fas fa-layer-group"></i> Open Slicer
+            </button>
+
+            <!-- Print Simulation Controls -->
+            <div id="simulation-controls" class="simulation-controls" style="display: none;">
+              <h4><i class="fas fa-play-circle"></i> Print Simulation</h4>
+              <div class="simulation-buttons">
+                <button id="simulate-print-btn" class="btn btn-success btn-sm">
+                  <i class="fas fa-play"></i> Play
+                </button>
+                <button id="stop-simulation-btn" class="btn btn-warning btn-sm">
+                  <i class="fas fa-stop"></i> Stop
+                </button>
+                <button id="show-all-layers-btn" class="btn btn-secondary btn-sm">
+                  <i class="fas fa-layer-group"></i> All
+                </button>
+              </div>
+              <div class="simulation-slider">
+                <label for="layer-slider">
+                  <i class="fas fa-layer-group"></i> Layer: <span id="layer-display">0</span>
+                </label>
+                <input type="range" id="layer-slider" min="0" max="100" value="0" step="1">
+              </div>
+              <div class="simulation-speed">
+                <label for="animation-speed">
+                  <i class="fas fa-tachometer-alt"></i> Speed: <span id="speed-display">1.0</span>x
+                </label>
+                <input type="range" id="animation-speed" min="0.1" max="5" value="1" step="0.1">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slicer Modal Popup -->
+      <div id="slicer-modal" class="modal" style="display: none;">
+        <div class="modal-content slicer-modal-content">
+          <div class="modal-header">
+            <h2><i class="fas fa-building"></i> Concrete 3D Printer Slicer</h2>
+            <button class="modal-close" id="close-slicer-btn">&times;</button>
+          </div>
+          <div class="modal-body">
+            
+            <!-- Printer Settings Section -->
+            <div class="printer-settings">
+              <h3><i class="fas fa-sliders-h"></i> Printer Settings</h3>
+              
+              <div class="settings-grid">
+                <div class="setting-group">
+                  <label for="layer-height">
+                    <i class="fas fa-layer-group"></i> Layer Height (mm)
+                    <span class="setting-hint">Vertical resolution</span>
+                  </label>
+                  <input type="number" id="layer-height" value="15" min="5" max="50" step="1">
+                </div>
+
+                <div class="setting-group">
+                  <label for="nozzle-diameter">
+                    <i class="fas fa-circle"></i> Nozzle Diameter (mm)
+                    <span class="setting-hint">Extrusion width</span>
+                  </label>
+                  <input type="number" id="nozzle-diameter" value="30" min="10" max="100" step="5">
+                </div>
+
+                <div class="setting-group">
+                  <label for="print-speed">
+                    <i class="fas fa-tachometer-alt"></i> Print Speed (mm/s)
+                    <span class="setting-hint">Movement speed</span>
+                  </label>
+                  <input type="number" id="print-speed" value="100" min="20" max="500" step="10">
+                </div>
+
+                <div class="setting-group">
+                  <label for="travel-speed">
+                    <i class="fas fa-shipping-fast"></i> Travel Speed (mm/s)
+                    <span class="setting-hint">Non-printing moves</span>
+                  </label>
+                  <input type="number" id="travel-speed" value="200" min="50" max="1000" step="10">
+                </div>
+
+                <div class="setting-group">
+                  <label for="concrete-density">
+                    <i class="fas fa-weight"></i> Concrete Density (kg/m³)
+                    <span class="setting-hint">Material density</span>
+                  </label>
+                  <input type="number" id="concrete-density" value="2400" min="2000" max="3000" step="50">
+                </div>
+
+                <div class="setting-group">
+                  <label for="waste-factor">
+                    <i class="fas fa-percentage"></i> Waste Factor (%)
+                    <span class="setting-hint">Extra material buffer</span>
+                  </label>
+                  <input type="number" id="waste-factor" value="10" min="0" max="50" step="5">
+                </div>
+              </div>
+
+              <div class="printer-preset-section">
+                <label for="printer-preset">
+                  <i class="fas fa-print"></i> Printer Preset
+                </label>
+                <select id="printer-preset">
+                  <option value="custom">Custom Settings</option>
+                  <!-- Presets loaded dynamically from printer_presets.json -->
+                </select>
+              </div>
+            </div>
+
+            <div class="slicer-controls">
+              <button id="generate-gcode-btn" class="btn btn-primary btn-large">
+                <i class="fas fa-cog"></i> Generate G-code
+              </button>
+              <button id="visualize-toolpaths-btn" class="btn btn-secondary btn-large" disabled>
+                <i class="fas fa-eye"></i> Toggle Toolpaths
+              </button>
+            </div>
+
+            <div id="slicing-results" class="slicing-results" style="display: none;">
+              <!-- Results populated by JavaScript -->
+            </div>
           </div>
         </div>
       </div>
